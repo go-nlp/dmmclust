@@ -1,0 +1,27 @@
+sudo: false
+language: go
+branches:
+  only:
+    - master
+
+go:
+  - 1.7.x
+  - 1.8.x
+  - 1.9.x
+  - tip
+
+env:
+  global:
+    - GOARCH=amd64
+    - TRAVISTEST=true
+
+before_install:
+  - go get github.com/mattn/goveralls
+
+script:
+  - go test -run=. -coverprofile=profile.cov
+  - $HOME/gopath/bin/goveralls -coverprofile=profile.cov -service=travis-ci
+
+matrix:
+  allow_failures:
+    - go: tip
