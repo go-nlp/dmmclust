@@ -1,6 +1,8 @@
 package dmmclust
 
 import (
+	"sync"
+
 	"github.com/pkg/errors"
 	randomkit "gorgonia.org/randomkit"
 )
@@ -61,9 +63,6 @@ type Document interface {
 	// Len returns the number of words in the document
 	Len() int
 }
-
-// distro represents the sparse distribution of words. The key is the corpus ID, while the value is the frequency
-type distro map[int]float64
 
 // Cluster is a representation of a cluster. It doesn't actually store any of the data, only the metadata of the cluster
 type Cluster struct {
@@ -201,18 +200,22 @@ func FindClusters(docs []Document, conf Config) ([]Cluster, error) {
 func Algorithm3(doc Document, docs []Document, clusters []Cluster, conf Config) []float64 {
 	docCount := float64(len(docs))
 	k := float64(conf.K)
+	vocab := float64(conf.Vocabulary)
 	retVal := make([]float64, len(clusters))
-	for i := 0; i < len(clusters); i++ {
+	var wg sync.WaitGroup
+	ts := doc.TokenSet()
+	for i := range clusters {
 		clust := clusters[i]
-		p := float64(clust.Docs()) + conf.Alpha/(docCount-1.0+k*conf.Alpha)
-
-		prod := 1.0
-		for j, tok := range doc.TokenSet() {
-			prod *= (clust.Freq(tok) + conf.Beta) / (float64(clust.Wordcount()) + float64(conf.Vocabulary)*conf.Beta + float64(j) - 1)
-		}
-		score := p * prod
-		retVal[i] = score
+		wg.Add(1)
+		go func(clust Cluster, i int, wg *sync.WaitGroup) {
+			p := float64(clust.Docs()) + conf.Alpha/(docCount-1.0+k*conf.Alpha)
+			num := algo3Numerator(clust, ts, conf.Beta)
+			denom := algoDenominator(clust, ts, conf.Beta, vocab)
+			retVal[i] = p * num / denom
+			wg.Done()
+		}(clust, i, &wg)
 	}
+	wg.Wait()
 
 	norm := sum(retVal)
 	if norm <= 0 {
@@ -224,10 +227,74 @@ func Algorithm3(doc Document, docs []Document, clusters []Cluster, conf Config) 
 	return retVal
 }
 
-// Algorithm4 is the implementation of Equation 4 in the original paper. It allows for multiple words to be used in a document
-//
-// BUG: TODO
-func Algorithm4(doc Document, docs []Document, clusters []Cluster, conf Config) []float64 { return nil }
+// Algorithm4 is the implementation of Equation 4 in the original paper.
+// It allows for multiple words to be used in a document.
+func Algorithm4(doc Document, docs []Document, clusters []Cluster, conf Config) []float64 {
+	docCount := float64(len(docs))
+	k := float64(conf.K)
+	vocab := float64(conf.Vocabulary)
+	retVal := make([]float64, len(clusters))
+	var wg sync.WaitGroup
+	ts := doc.TokenSet()
+	for i := range clusters {
+		clust := clusters[i]
+		wg.Add(1)
+		go func(clust Cluster, i int, wg *sync.WaitGroup) {
+			p := float64(clust.Docs()) + conf.Alpha/(docCount-1.0+k*conf.Alpha)
+			num := algo4Numerator(clust, ts, conf.Beta)
+			denom := algoDenominator(clust, ts, conf.Beta, vocab)
+			retVal[i] = p * num / denom
+			wg.Done()
+		}(clust, i, &wg)
+	}
+	wg.Wait()
+
+	norm := sum(retVal)
+	if norm <= 0 {
+		norm = 1
+	}
+	for i := range retVal {
+		retVal[i] = retVal[i] / norm
+	}
+	return retVal
+}
+
+func algoDenominator(clust Cluster, ts TokenSet, beta float64, vocab float64) float64 {
+	retVal := 1.0
+	wc := float64(clust.Wordcount())
+	for i := 0; i < len(ts); i++ {
+		retVal *= wc + vocab*beta + float64(i)
+	}
+	return retVal
+}
+
+func algo3Numerator(clust Cluster, ts TokenSet, beta float64) float64 {
+	retVal := 1.0
+	for _, tok := range ts {
+		retVal *= (clust.Freq(tok) + beta)
+	}
+	return retVal
+}
+
+func algo4Numerator(clust Cluster, ts TokenSet, beta float64) float64 {
+	d := make(kvs, 0, len(ts))
+	for _, tok := range ts {
+		d = d.add(tok)
+		d.incr(tok)
+	}
+
+	retVal := 1.0
+	for _, tok := range ts {
+		prod := 1.0
+		freq := d.val(tok)
+		clustFreq := clust.Freq(tok)
+		for j := 0.0; j < freq; j++ {
+			prod *= clustFreq + beta + j
+		}
+		retVal *= prod
+	}
+	return retVal
+}
 
 /* Sampling Functions */
 
@@ -240,12 +307,4 @@ func Gibbs(p []float64) int {
 		}
 	}
 	panic("Unreachable") // practically this part is unreachable
-}
-
-/* UTILITIES */
-func sum(a []float64) (retVal float64) {
-	for _, v := range a {
-		retVal += v
-	}
-	return
 }

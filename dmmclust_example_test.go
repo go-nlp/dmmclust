@@ -45,7 +45,7 @@ func makeCorpus(a []string) map[string]int {
 	return retVal
 }
 
-func makeDocuments(a []string, c map[string]int) []Document {
+func makeDocuments(a []string, c map[string]int, allowRepeat bool) []Document {
 	retVal := make([]Document, 0, len(a))
 	for _, s := range a {
 		var ts []int
@@ -53,7 +53,9 @@ func makeDocuments(a []string, c map[string]int) []Document {
 			id := c[f]
 			ts = append(ts, id)
 		}
-		ts = set.Ints(ts) // this uniquifies the sentence
+		if !allowRepeat {
+			ts = set.Ints(ts) // this uniquifies the sentence
+		}
 		retVal = append(retVal, TokenSet(ts))
 	}
 	return retVal
@@ -61,7 +63,7 @@ func makeDocuments(a []string, c map[string]int) []Document {
 
 func Example() {
 	corp := makeCorpus(data)
-	docs := makeDocuments(data, corp)
+	docs := makeDocuments(data, corp, false)
 	conf := Config{
 		K:          10,         // maximum 10 clusters expected
 		Vocabulary: len(corp),  // simple example: the vocab is the same as the corpus size
@@ -71,18 +73,30 @@ func Example() {
 		Score:      Algorithm3, // use Algorithm3 to score
 		Sample:     Gibbs,      // use Gibbs to sample
 	}
-
-	clustered, err := FindClusters(docs, conf)
-	if err != nil {
+	var clustered []Cluster
+	var err error
+	if clustered, err = FindClusters(docs, conf); err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println("Clusters:")
+	fmt.Println("Clusters (Algorithm3):")
+	for i, clust := range clustered {
+		fmt.Printf("\t%d: %q\n", clust.ID(), data[i])
+	}
+
+	// Using Algorithm4, where repeat words are allowed
+	docs = makeDocuments(data, corp, true)
+	conf.Score = Algorithm4
+	if clustered, err = FindClusters(docs, conf); err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println("\nClusters (Algorithm4):")
 	for i, clust := range clustered {
 		fmt.Printf("\t%d: %q\n", clust.ID(), data[i])
 	}
 
 	// Output:
-	// Clusters:
+	// Clusters (Algorithm3):
 	//	0: "A Java prefix that I don't hate ."
 	//	0: "Colleagues must have thought I was crazy on Friday, but @MeccaCoffee ' s latest Xade Burqa is nothing short of orgasm inducing ."
 	//	1: "Let me take this time while I wait for your JavaScript to download to tell you to stop using so much JavaScript on your web page ."
@@ -93,4 +107,16 @@ func Example() {
 	//	3: "In case you missed it , 10000 words on generics in #golang :"
 	//	3: "Data Science in Go https://speakerdeck.com/chewxy/data-science-in-go … Slides by @chewxy #gopher #golang"
 	//	1: "Big heap , many pointers . GC killing me . Help ? Tips? #golang . Most pointers unavoidable ."
+	//
+	// Clusters (Algorithm4):
+	//	0: "A Java prefix that I don't hate ."
+	//	0: "Colleagues must have thought I was crazy on Friday, but @MeccaCoffee ' s latest Xade Burqa is nothing short of orgasm inducing ."
+	//	1: "Let me take this time while I wait for your JavaScript to download to tell you to stop using so much JavaScript on your web page ."
+	//	2: "all future programming languages I implement will have On Error Resume Next . Even if it's a functional , expressions-only language . Because I can. "
+	//	2: "On Error Resume Next"
+	//	2: "When I was younger , I used VB. My crutch was On Error Resume Next . I find it weird reimplementing it for a probabilistic parser ."
+	//	3: "Questions for #gopher and #golang people out there : how do you debug a slow compile ? "
+	//	3: "In case you missed it , 10000 words on generics in #golang :"
+	//	3: "Data Science in Go https://speakerdeck.com/chewxy/data-science-in-go … Slides by @chewxy #gopher #golang"
+	//	2: "Big heap , many pointers . GC killing me . Help ? Tips? #golang . Most pointers unavoidable ."
 }
