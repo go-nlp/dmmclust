@@ -55,7 +55,10 @@ func (ts TokenSet) Len() int           { return len(ts) }
 
 // Document is anything that can return a TokenSet
 type Document interface {
+	// TokenSet returns a list of word IDs. It's preferable to return an ordered list, rather than a uniquified set.
 	TokenSet() TokenSet
+
+	// Len returns the number of words in the document
 	Len() int
 }
 
@@ -221,7 +224,10 @@ func Algorithm3(doc Document, docs []Document, clusters []Cluster, conf Config) 
 	return retVal
 }
 
-func Algorithm4(doc TokenSet, clusters []Cluster, conf Config) []float64 { return nil }
+// Algorithm4 is the implementation of Equation 4 in the original paper. It allows for multiple words to be used in a document
+//
+// BUG: TODO
+func Algorithm4(doc Document, docs []Document, clusters []Cluster, conf Config) []float64 { return nil }
 
 /* Sampling Functions */
 
