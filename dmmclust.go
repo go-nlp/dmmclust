@@ -11,6 +11,7 @@ type ScoringFn func(doc Document, docs []Document, clusters []Cluster, conf Conf
 // SamplingFn is a sampling function that take a slice of floats and returns an index
 type SamplingFn func([]float64) int
 
+// Config is a struct that configures the running of the algorithm.
 type Config struct {
 	// Maximum number of clusters expected
 	K int
@@ -27,7 +28,10 @@ type Config struct {
 	// Betweenness affinity
 	Beta float64
 
-	Score  ScoringFn
+	// Score is a scoring function that will be used
+	Score ScoringFn
+
+	// Sample is the sampling function that will be used
 	Sample SamplingFn
 }
 
@@ -221,6 +225,7 @@ func Algorithm4(doc TokenSet, clusters []Cluster, conf Config) []float64 { retur
 
 /* Sampling Functions */
 
+// Gibbs is the standard sampling function, as per the paper.
 func Gibbs(p []float64) int {
 	ret := randomkit.Multinomial(1, p, len(p))
 	for i, v := range ret {

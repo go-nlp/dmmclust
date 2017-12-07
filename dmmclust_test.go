@@ -16,9 +16,9 @@ func TestCluster_Words(t *testing.T) {
 
 func TestShitConfig(t *testing.T) {
 	confs := []Config{
-		Config{},
-		Config{Sample: Gibbs},
-		Config{Score: Algorithm3},
+		{},
+		{Sample: Gibbs},
+		{Score: Algorithm3},
 	}
 
 	for _, conf := range confs {

@@ -1,4 +1,4 @@
-# DMMClust #
+# DMMClust [![GoDoc](https://godoc.org/github.com/go-nlp/dmmclust?status.svg)](https://godoc.org/github.com/go-nlp/dmmclust) [![Build Status](https://travis-ci.org/go-nlp/dmmclust.svg?branch=master)](https://travis-ci.org/go-nlp/dmmclust) [![Coverage Status](https://coveralls.io/repos/github/go-nlp/dmmclust/badge.svg?branch=master)](https://coveralls.io/github/go-nlp/dmmclust?branch=master) #
 
 package `dmmclust` is a package that provides functions for clustering small texts as described by [Yin and Wang (2014)](dbgroup.cs.tsinghua.edu.cn/wangjy/papers/KDD14-GSDMM.pdf) in *A Dirichlet Multinomial Mixture Model based Approach for Short Text Clustering*.
 
@@ -40,9 +40,26 @@ func main(){
 }
 ```
 
-# Plays Well #
+## Hyperparameters ##
 
-This package plays well with other NLP packages (i.e. lingo). Much of the dependency on `lingo` has been removed for better interfacing. 
+* `K` represents the maximum number of clusters expected. The final number of clusters can never exceed `K`.
+* `Alpha` represents the probability of joining an empty group. If `Alpha` is `0.0` then once a group is empty, it'll stay empty for the rest of the 
+* `Beta` represents the probability of joining groups that are similar. If `Beta` is `0.0`, then a document will never join a group if there are no common words between the groups and the documents. In some cases this is preferable (highly preprocessed inputs for example).
+
+# Playing Well With Other Packages #
+
+This package was originally built to play well with [lingo](https://github.com/chewxy/lingo). It's why it works on slices of integers. That's the only preprocessing necessary - converting a sentence into a slice of ints.
+
+The `Document` interface is defined as:
+
+```
+type Document interface {
+	TokenSet() TokenSet
+	Len() int
+}
+```
+
+`TokenSet` is simply a `[]int`, where each ith element represents the word ID of a corpus. The order is not important in the provided algorithms (Algorithm3 and Algorithm4), but may be important in some other scoring function.
 
 # Extensibility #
 
@@ -51,6 +68,10 @@ This package defines a Scoring Function as `type ScoringFn func(doc Document, do
 There are two scoring algorithms provided: `Algorithm3` and `Algorithm4`. I've been successful at using other scoring algorithms as well.
 
 The sampling function is also customizable. The default is to use `Gibbs`. I've not had much success at other sampling algorithms.
+
+# Contributing #
+
+To contribute to this package, simply file an issue, discuss and then send a pull request. Please ensure that tests are provided in any changes.
 
 # Licence #
 
