@@ -1,6 +1,7 @@
 package dmmclust
 
 import (
+	"math/rand"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -10,8 +11,10 @@ import (
 // ScoringFn is any function that can take a document and return the probabilities of it existing in those clusters
 type ScoringFn func(doc Document, docs []Document, clusters []Cluster, conf Config) []float64
 
-// SamplingFn is a sampling function that take a slice of floats and returns an index
-type SamplingFn func([]float64) int
+// Sampler is anything that can generate a index based on the given probability
+type Sampler interface {
+	Sample([]float64) int
+}
 
 // Config is a struct that configures the running of the algorithm.
 type Config struct {
@@ -33,8 +36,8 @@ type Config struct {
 	// Score is a scoring function that will be used
 	Score ScoringFn
 
-	// Sample is the sampling function that will be used
-	Sample SamplingFn
+	// Sampler is the sampler function
+	Sampler Sampler
 }
 
 // valid checks that the config for errors
@@ -42,8 +45,8 @@ func (c *Config) valid() error {
 	if c.Score == nil {
 		return errors.New("Expected Score to not be nil")
 	}
-	if c.Sample == nil {
-		return errors.New("Expected Sample to not be nil")
+	if c.Sampler == nil {
+		return errors.New("Expected Sampler to not be nil")
 	}
 	return nil
 }
@@ -128,7 +131,7 @@ func FindClusters(docs []Document, conf Config) ([]Cluster, error) {
 	dz := make([]int, len(docs))
 	for i, doc := range docs {
 		// randomly chuck docs into a cluster
-		z := conf.Sample(probs)
+		z := conf.Sampler.Sample(probs)
 
 		dz[i] = z
 		clust := &state[z]
@@ -146,7 +149,7 @@ func FindClusters(docs []Document, conf Config) ([]Cluster, error) {
 
 			// draw sample from distro to find new cluster
 			p := conf.Score(doc, docs, state, conf)
-			z2 := conf.Sample(p)
+			z2 := conf.Sampler.Sample(p)
 
 			// transfer doc to new clusetr
 			if z2 != old {
@@ -240,6 +243,7 @@ func Algorithm4(doc Document, docs []Document, clusters []Cluster, conf Config) 
 		clust := clusters[i]
 		wg.Add(1)
 		go func(clust Cluster, i int, wg *sync.WaitGroup) {
+
 			p := float64(clust.Docs()) + conf.Alpha/(docCount-1.0+k*conf.Alpha)
 			num := algo4Numerator(clust, ts, conf.Beta)
 			denom := algoDenominator(clust, ts, conf.Beta, vocab)
@@ -256,6 +260,7 @@ func Algorithm4(doc Document, docs []Document, clusters []Cluster, conf Config) 
 	for i := range retVal {
 		retVal[i] = retVal[i] / norm
 	}
+	ddd++
 	return retVal
 }
 
@@ -299,8 +304,21 @@ func algo4Numerator(clust Cluster, ts TokenSet, beta float64) float64 {
 /* Sampling Functions */
 
 // Gibbs is the standard sampling function, as per the paper.
-func Gibbs(p []float64) int {
-	ret := randomkit.Multinomial(1, p, len(p))
+type Gibbs struct {
+	randomkit.BinomialGenerator
+}
+
+func NewGibbs(rand *rand.Rand) *Gibbs {
+	return &Gibbs{
+		BinomialGenerator: randomkit.BinomialGenerator{
+			Rand: rand,
+		},
+	}
+}
+
+// Gibbs returns the index sampled
+func (s *Gibbs) Sample(p []float64) int {
+	ret := s.BinomialGenerator.Multinomial(1, p, len(p))
 	for i, v := range ret {
 		if v != 0 {
 			return i

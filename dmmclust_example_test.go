@@ -2,6 +2,7 @@ package dmmclust_test
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
 
 	. "github.com/go-nlp/dmmclust"
@@ -64,14 +65,15 @@ func makeDocuments(a []string, c map[string]int, allowRepeat bool) []Document {
 func Example() {
 	corp := makeCorpus(data)
 	docs := makeDocuments(data, corp, false)
+	r := rand.New(rand.NewSource(1337))
 	conf := Config{
-		K:          10,         // maximum 10 clusters expected
-		Vocabulary: len(corp),  // simple example: the vocab is the same as the corpus size
-		Iter:       1000,       // iterate 100 times
-		Alpha:      0.0001,     // smaller probability of joining an empty group
-		Beta:       0.1,        // higher probability of joining groups like me
-		Score:      Algorithm3, // use Algorithm3 to score
-		Sample:     Gibbs,      // use Gibbs to sample
+		K:          10,          // maximum 10 clusters expected
+		Vocabulary: len(corp),   // simple example: the vocab is the same as the corpus size
+		Iter:       1000,        // iterate 100 times
+		Alpha:      0.0001,      // smaller probability of joining an empty group
+		Beta:       0.1,         // higher probability of joining groups like me
+		Score:      Algorithm3,  // use Algorithm3 to score
+		Sampler:    NewGibbs(r), // use Gibbs to sample
 	}
 	var clustered []Cluster
 	var err error

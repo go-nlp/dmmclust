@@ -1,6 +1,9 @@
 package dmmclust
 
-import "testing"
+import (
+	"math/rand"
+	"testing"
+)
 
 func TestCluster_Words(t *testing.T) {
 	c := Cluster{
@@ -17,7 +20,7 @@ func TestCluster_Words(t *testing.T) {
 func TestShitConfig(t *testing.T) {
 	confs := []Config{
 		{},
-		{Sample: Gibbs},
+		{Sampler: NewGibbs(rand.New(rand.NewSource(1337)))},
 		{Score: Algorithm3},
 	}
 
