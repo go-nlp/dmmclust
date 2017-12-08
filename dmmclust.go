@@ -260,7 +260,6 @@ func Algorithm4(doc Document, docs []Document, clusters []Cluster, conf Config) 
 	for i := range retVal {
 		retVal[i] = retVal[i] / norm
 	}
-	ddd++
 	return retVal
 }
 
