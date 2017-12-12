@@ -55,13 +55,13 @@ func (c *Config) valid() error {
 // Depending on algorithm, it may be uniquified using a set function that does not preserve order
 type TokenSet []int
 
-func (ts TokenSet) TokenSet() TokenSet { return ts }
-func (ts TokenSet) Len() int           { return len(ts) }
+func (ts TokenSet) IDs() []int { return []int(ts) }
+func (ts TokenSet) Len() int   { return len(ts) }
 
 // Document is anything that can return a TokenSet
 type Document interface {
-	// TokenSet returns a list of word IDs. It's preferable to return an ordered list, rather than a uniquified set.
-	TokenSet() TokenSet
+	// IDs returns a list of word IDs. It's preferable to return an ordered list, rather than a uniquified set.
+	IDs() []int
 
 	// Len returns the number of words in the document
 	Len() int
@@ -82,7 +82,7 @@ func (c *Cluster) addDoc(doc Document) {
 		c.dist = make(distro)
 	}
 
-	for _, tok := range doc.TokenSet() {
+	for _, tok := range doc.IDs() {
 		c.dist[tok]++
 	}
 }
@@ -90,7 +90,7 @@ func (c *Cluster) addDoc(doc Document) {
 func (c *Cluster) removeDoc(doc Document) {
 	c.docs--
 	c.words -= doc.Len()
-	for _, tok := range doc.TokenSet() {
+	for _, tok := range doc.IDs() {
 		c.dist[tok]--
 	}
 }
@@ -206,7 +206,7 @@ func Algorithm3(doc Document, docs []Document, clusters []Cluster, conf Config) 
 	vocab := float64(conf.Vocabulary)
 	retVal := make([]float64, len(clusters))
 	var wg sync.WaitGroup
-	ts := doc.TokenSet()
+	ts := doc.IDs()
 	for i := range clusters {
 		clust := clusters[i]
 		wg.Add(1)
@@ -238,7 +238,7 @@ func Algorithm4(doc Document, docs []Document, clusters []Cluster, conf Config) 
 	vocab := float64(conf.Vocabulary)
 	retVal := make([]float64, len(clusters))
 	var wg sync.WaitGroup
-	ts := doc.TokenSet()
+	ts := doc.IDs()
 	for i := range clusters {
 		clust := clusters[i]
 		wg.Add(1)
